@@ -6,11 +6,11 @@ mod timelines;
 pub mod animation;
 
 use json;
-use from_json;
 use std::collections::HashMap;
 use std::io::Read;
 use std::f32::consts::PI;
-use serialize::hex::{FromHex, FromHexError};
+use rustc_hex::{FromHex, FromHexError};
+use serde_json;
 
 // Reexport skeleton modules
 use self::error::SkeletonError;
@@ -20,11 +20,17 @@ use self::animation::SkinAnimation;
 const TO_RADIAN: f32 = PI / 180f32;
 
 fn bone_index(name: &str, bones: &[Bone]) -> Result<usize, SkeletonError> {
-    bones.iter().position(|b| b.name == *name).ok_or_else(|| SkeletonError::BoneNotFound(name.to_owned()))
+    bones
+        .iter()
+        .position(|b| b.name == *name)
+        .ok_or_else(|| SkeletonError::BoneNotFound(name.to_owned()))
 }
 
 fn slot_index(name: &str, slots: &[Slot]) -> Result<usize, SkeletonError> {
-    slots.iter().position(|b| b.name == *name).ok_or_else(|| SkeletonError::SlotNotFound(name.to_owned()))
+    slots
+        .iter()
+        .position(|b| b.name == *name)
+        .ok_or_else(|| SkeletonError::SlotNotFound(name.to_owned()))
 }
 
 /// Skeleton data converted from json and loaded into memory
@@ -36,17 +42,15 @@ pub struct Skeleton {
     /// skins : key: skin name, value: slots attachments
     skins: HashMap<String, Skin>,
     /// all the animations
-    animations: HashMap<String, Animation>
+    animations: HashMap<String, Animation>,
 }
 
 impl Skeleton {
-
     /// Consumes reader (with json data) and returns a skeleton wrapping
     pub fn from_reader<R: Read>(mut reader: R) -> Result<Skeleton, SkeletonError> {
 
         // read and convert as json
-        let document = try!(from_json::Json::from_reader(&mut reader));
-        let document: json::Document = try!(from_json::FromJson::from_json(&document));
+        let document: json::Document = serde_json::from_reader(&mut reader)?;
 
         // convert to skeleton (consumes document)
         Skeleton::from_json(document)
@@ -55,11 +59,10 @@ impl Skeleton {
     /// Creates a from_json skeleton
     /// Consumes json::Document
     fn from_json(doc: json::Document) -> Result<Skeleton, SkeletonError> {
-
         let mut bones = Vec::new();
         if let Some(jbones) = doc.bones {
             for b in jbones.into_iter() {
-                let bone = try!(Bone::from_json(b, &bones));
+                let bone = Bone::from_json(b, &bones)?;
                 bones.push(bone);
             }
         }
@@ -67,7 +70,7 @@ impl Skeleton {
         let mut slots = Vec::new();
         if let Some(jslots) = doc.slots {
             for s in jslots.into_iter() {
-                let slot = try!(Slot::from_json(s, &bones));
+                let slot = Slot::from_json(s, &bones)?;
                 slots.push(slot);
             }
         }
@@ -75,7 +78,7 @@ impl Skeleton {
         let mut animations = HashMap::new();
         for janimations in doc.animations.into_iter() {
             for (name, animation) in janimations.into_iter() {
-                let animation = try!(Animation::from_json(animation, &bones, &slots));
+                let animation = Animation::from_json(animation, &bones, &slots)?;
                 animations.insert(name, animation);
             }
         }
@@ -85,10 +88,10 @@ impl Skeleton {
             for (name, jslots) in jskin.into_iter() {
                 let mut skin = Vec::new();
                 for (name, attachments) in jslots.into_iter() {
-                    let slot_index = try!(slot_index(&name, &slots));
+                    let slot_index = slot_index(&name, &slots)?;
                     let attachments = attachments.into_iter().map(|(name, attachment)| {
                         (name, Attachment::from_json(attachment))
-                     }).collect();
+                    }).collect();
                     skin.push((slot_index, attachments));
                 }
                 skins.insert(name, Skin {
@@ -98,10 +101,10 @@ impl Skeleton {
         }
 
         Ok(Skeleton {
-            bones: bones,
-            slots: slots,
-            skins: skins,
-            animations: animations
+            bones,
+            slots,
+            skins,
+            animations,
         })
     }
 
@@ -112,7 +115,7 @@ impl Skeleton {
 
     /// Gets a SkinAnimation which can interpolate slots at a given time
     pub fn get_animated_skin<'a>(&'a self, skin: &str, animation: Option<&str>)
-        -> Result<SkinAnimation<'a>, SkeletonError>
+                                 -> Result<SkinAnimation<'a>, SkeletonError>
     {
         SkinAnimation::new(self, skin, animation)
     }
@@ -176,22 +179,21 @@ struct Animation {
     slots: Vec<(usize, SlotTimeline)>,
     events: Vec<json::EventKeyframe>,
     draworder: Vec<json::DrawOrderTimeline>,
-    duration: f32
+    duration: f32,
 }
 
 impl Animation {
-
     /// Creates a from_json Animation
     fn from_json(animation: json::Animation, bones: &[Bone], slots: &[Slot])
-        -> Result<Animation, SkeletonError>
+                 -> Result<Animation, SkeletonError>
     {
         let duration = Animation::duration(&animation);
 
         let mut abones = Vec::new();
         for jbones in animation.bones.into_iter() {
             for (name, timelines) in jbones.into_iter() {
-                let index = try!(bone_index(&name, bones));
-                let timeline = try!(BoneTimeline::from_json(timelines));
+                let index = bone_index(&name, bones)?;
+                let timeline = BoneTimeline::from_json(timelines)?;
                 abones.push((index, timeline));
             }
         }
@@ -199,14 +201,14 @@ impl Animation {
         let mut aslots = Vec::new();
         for jslots in animation.slots.into_iter() {
             for (name, timelines) in jslots.into_iter() {
-                let index = try!(slot_index(&name, slots));
-                let timeline = try!(SlotTimeline::from_json(timelines));
+                let index = slot_index(&name, slots)?;
+                let timeline = SlotTimeline::from_json(timelines)?;
                 aslots.push((index, timeline));
             }
         }
 
         Ok(Animation {
-            duration: duration,
+            duration,
             bones: abones,
             slots: aslots,
             events: animation.events.unwrap_or(Vec::new()),
@@ -215,16 +217,30 @@ impl Animation {
     }
 
     fn duration(animation: &json::Animation) -> f32 {
-        animation.bones.iter().flat_map(|bones| bones.values().flat_map(|timelines|{
-            timelines.translate.iter().flat_map(|translate| translate.iter().map(|e| e.time))
-            .chain(timelines.rotate.iter().flat_map(|rotate| rotate.iter().map(|e| e.time)))
-            .chain(timelines.scale.iter().flat_map(|scale| scale.iter().map(|e| e.time)))
-        }))
-        .chain(animation.slots.iter().flat_map(|slots| slots.values().flat_map(|timelines|{
-            timelines.attachment.iter().flat_map(|attachment| attachment.iter().map(|e| e.time))
-            .chain(timelines.color.iter().flat_map(|color| color.iter().map(|e| e.time)))
-        })))
-        .fold(0.0f32, f32::max)
+        animation.bones.iter()
+            .flat_map(|bones| bones.values()
+                .flat_map(|timelines| {
+                    timelines.translate.iter()
+                        .flat_map(|translate| translate.iter()
+                            .map(|e| e.time))
+                        .chain(timelines.rotate.iter()
+                            .flat_map(|rotate| rotate.iter()
+                                .map(|e| e.time)))
+                        .chain(timelines.scale.iter()
+                            .flat_map(|scale| scale.iter()
+                                .map(|e| e.time)))
+                }))
+            .chain(animation.slots.iter()
+                .flat_map(|slots| slots.values()
+                    .flat_map(|timelines| {
+                        timelines.attachment.iter()
+                            .flat_map(|attachment| attachment.iter()
+                                .map(|e| e.time))
+                            .chain(timelines.color.iter()
+                                .flat_map(|color| color.iter()
+                                    .map(|e| e.time)))
+                    })))
+            .fold(0.0f32, f32::max)
     }
 }
 
@@ -240,48 +256,46 @@ pub struct SRT {
     /// cosinus
     pub cos: f32,
     /// sinus
-    pub sin: f32
+    pub sin: f32,
 }
 
 impl SRT {
-
     /// new srt
     pub fn new(scale_x: f32, scale_y: f32, rotation_deg: f32, x: f32, y: f32) -> SRT {
         let rotation = rotation_deg * TO_RADIAN;
         SRT {
             scale: [scale_x, scale_y],
-            rotation: rotation,
+            rotation,
             position: [x, y],
             cos: rotation.cos(),
-            sin: rotation.sin()
+            sin: rotation.sin(),
         }
     }
 
     /// apply srt on a 2D point (consumes the point)
     pub fn transform(&self, v: [f32; 2]) -> [f32; 2] {
         [self.cos * v[0] * self.scale[0] - self.sin * v[1] * self.scale[1] + self.position[0],
-         self.sin * v[0] * self.scale[0] + self.cos * v[1] * self.scale[1] + self.position[1]]
+            self.sin * v[0] * self.scale[0] + self.cos * v[1] * self.scale[1] + self.position[1]]
     }
 
     /// convert srt to a 3x3 transformation matrix (2D)
     pub fn to_matrix3(&self) -> [[f32; 3]; 3] {
         [
-            [ self.cos * self.scale[0], self.sin, 0.0],
+            [self.cos * self.scale[0], self.sin, 0.0],
             [-self.sin, self.cos * self.scale[1], 0.0],
-            [ self.position[0] , self.position[1], 1.0f32],
+            [self.position[0], self.position[1], 1.0f32],
         ]
     }
 
     /// convert srt to a 4x4 transformation matrix (3D)
     pub fn to_matrix4(&self) -> [[f32; 4]; 4] {
         [
-            [ self.cos * self.scale[0], self.sin, 0.0, 0.0],
+            [self.cos * self.scale[0], self.sin, 0.0, 0.0],
             [-self.sin, self.cos * self.scale[1], 0.0, 0.0],
             [0.0, 0.0, 1.0, 0.0],
-            [ self.position[0] , self.position[1], 0.0, 1.0f32],
+            [self.position[0], self.position[1], 0.0, 1.0f32],
         ]
     }
-
 }
 
 /// skeleton bone
@@ -291,13 +305,13 @@ struct Bone {
     // length: f32,
     srt: SRT,
     inherit_scale: bool,
-    inherit_rotation: bool
+    inherit_rotation: bool,
 }
 
 impl Bone {
     fn from_json(bone: json::Bone, bones: &[Bone]) -> Result<Bone, SkeletonError> {
         let index = match bone.parent {
-            Some(ref name) => Some(try!(bone_index(name, bones))),
+            Some(ref name) => Some(bone_index(name, bones)?),
             None => None
         };
         Ok(Bone {
@@ -305,7 +319,7 @@ impl Bone {
             parent_index: index,
             // length: bone.length.unwrap_or(0f32),
             srt: SRT::new(bone.scale_x.unwrap_or(1.0), bone.scale_y.unwrap_or(1.0),
-                bone.rotation.unwrap_or(0.0), bone.x.unwrap_or(0.0), bone.y.unwrap_or(0.0)),
+                          bone.rotation.unwrap_or(0.0), bone.x.unwrap_or(0.0), bone.y.unwrap_or(0.0)),
             inherit_scale: bone.inherit_scale.unwrap_or(true),
             inherit_rotation: bone.inherit_rotation.unwrap_or(true),
         })
@@ -317,28 +331,28 @@ struct Slot {
     name: String,
     bone_index: usize,
     color: [u8; 4],
-    attachment: Option<String>
+    attachment: Option<String>,
 }
 
 impl Slot {
     fn from_json(slot: json::Slot, bones: &[Bone]) -> Result<Slot, SkeletonError> {
-        let bone_index = try!(bone_index(&slot.bone, &bones));
+        let bone_index = bone_index(&slot.bone, &bones)?;
         let color = match slot.color {
             Some(c) => {
-                let v = try!(c.from_hex());
+                let v = c.from_hex()?;
                 if v.len() != 4 {
                     return Err(SkeletonError::InvalidColor(FromHexError::InvalidHexLength));
                 }
                 [v[0], v[1], v[2], v[3]]
-            },
+            }
             None => [255, 255, 255, 255]
         };
 
         Ok(Slot {
             name: slot.name,
-            bone_index: bone_index,
-            color: color,
-            attachment: slot.attachment
+            bone_index,
+            color,
+            attachment: slot.attachment,
         })
     }
 }
@@ -348,7 +362,7 @@ impl Slot {
 struct Attachment {
     name: Option<String>,
     type_: json::AttachmentType,
-    positions: [[f32; 2]; 4]
+    positions: [[f32; 2]; 4],
     // fps: Option<f32>,
     // mode: Option<String>,
     //vertices: Option<Vec<??>>     // TODO: ?
@@ -365,10 +379,10 @@ impl Attachment {
         Attachment {
             name: attachment.name,
             type_: attachment.type_.unwrap_or(json::AttachmentType::Region),
-            positions: [srt.transform([-w2,  h2]),
-                        srt.transform([w2,  h2]),
-                        srt.transform([w2,  -h2]),
-                        srt.transform([-w2,  -h2])]
+            positions: [srt.transform([-w2, h2]),
+                srt.transform([w2, h2]),
+                srt.transform([w2, -h2]),
+                srt.transform([-w2, -h2])],
         }
     }
 }

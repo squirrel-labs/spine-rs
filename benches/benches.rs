@@ -2,7 +2,6 @@
 
 extern crate spine;
 extern crate test;
-extern crate clock_ticks;
 
 use std::io::BufReader;
 

@@ -79,8 +79,10 @@
 #![deny(missing_docs)]
 
 #[macro_use]
-extern crate from_json;
-extern crate rustc_serialize as serialize;
+extern crate serde_derive;
+extern crate serde;
+extern crate serde_json;
+extern crate rustc_hex;
 
 mod json;
 pub mod skeleton;

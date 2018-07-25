@@ -1,6 +1,6 @@
 use json;
 use skeleton;
-use serialize::hex::{FromHex, FromHexError};
+use rustc_hex::{FromHex, FromHexError};
 use skeleton::error::SkeletonError;
 
 const BEZIER_SEGMENTS: usize = 10;

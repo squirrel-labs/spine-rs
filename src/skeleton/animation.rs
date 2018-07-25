@@ -36,13 +36,14 @@ impl<'a> SkinAnimation<'a> {
         -> Result<SkinAnimation<'a>, SkeletonError>
     {
         // search all attachments defined by the skin name (use 'default' skin if not found)
-        let skin = try!(skeleton.get_skin(skin));
-        let default_skin = try!(skeleton.get_skin("default"));
+        let skin = skeleton.get_skin(skin)?;
+        let default_skin = skeleton.get_skin("default")?;
 
         // get animation
         let (animation, duration) = if let Some(animation) = animation {
-            let anim = try!(skeleton.animations.get(animation)
-                .ok_or_else(|| SkeletonError::AnimationNotFound(animation.to_owned())));
+            let anim = skeleton.animations
+                .get(animation)
+                .ok_or_else(|| SkeletonError::AnimationNotFound(animation.to_owned()))?;
             (Some(anim), anim.duration)
         } else {
             (None, 0f32)
@@ -77,9 +78,9 @@ impl<'a> SkinAnimation<'a> {
         }).collect();
 
         Ok(SkinAnimation {
-            duration: duration,
-            anim_bones: anim_bones,
-            anim_slots: anim_slots,
+            duration,
+            anim_bones,
+            anim_slots,
         })
     }
 
@@ -140,9 +141,9 @@ impl<'a> SkinAnimation<'a> {
         let srts = self.get_bones_srts(time);
         let iter = self.anim_slots.iter();
         Some(Sprites {
-            iter: iter,
-            srts: srts,
-            time: time
+            iter,
+            srts,
+            time
         })
     }
 
@@ -151,7 +152,7 @@ impl<'a> SkinAnimation<'a> {
         AnimationIter {
             skin_animation: &self,
             time: 0f32,
-            delta: delta
+            delta
         }
     }
 }
@@ -199,7 +200,7 @@ impl<'a> Iterator for Sprites<'a> {
                 return Some(Sprite {
                     attachment: attach_name,
                     srt: self.srts[slot.bone_index].clone(),
-                    color: color
+                    color
                 })
             }
         }

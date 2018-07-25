@@ -1,8 +1,7 @@
 //! Module to handle all spine errors
 
-use serialize::hex::FromHexError;
-use serialize::json::ParserError;
-use from_json::FromJsonError;
+use rustc_hex::FromHexError;
+use serde_json::error::Error as SerdeError;
 use std::fmt;
 use std::error::Error;
 
@@ -10,10 +9,7 @@ use std::error::Error;
 pub enum SkeletonError {
 
     /// Parser error
-    ParserError(ParserError),
-
-    /// Parser error
-    FromJsonError(FromJsonError),
+    ParserError(SerdeError),
 
     /// The requested bone was not found.
     BoneNotFound(String),
@@ -39,7 +35,6 @@ impl fmt::Debug for SkeletonError {
             SkeletonError::SkinNotFound(ref name) => write!(f, "Cannot find skin '{}'", name),
             SkeletonError::AnimationNotFound(ref name) => write!(f, "Cannot find animation '{}'", name),
             SkeletonError::InvalidColor(ref e)  => write!(f, "Cannot convert color to hexadecimal: {:?}", e),
-            SkeletonError::FromJsonError(ref e) => write!(f, "Cannot deserialize from json: {:?}", e),
             SkeletonError::ParserError(ref e)   => write!(f, "Cannot deserialize from json: {:?}", e),
         }
     }
@@ -59,7 +54,6 @@ impl Error for SkeletonError {
             SkeletonError::SkinNotFound(_) => "skin cannot be found in skeleton skins",
             SkeletonError::InvalidColor(_) => "color cannot be parsed",
             SkeletonError::AnimationNotFound(_) => "animation cannot be found in skeleton animations",
-            SkeletonError::FromJsonError(_) => "error while parsing json skeleton",
             SkeletonError::ParserError(_) => "error while parsing json skeleton",
         }
     }
@@ -71,14 +65,8 @@ impl From<FromHexError> for SkeletonError {
     }
 }
 
-impl From<ParserError> for SkeletonError {
-    fn from(error: ParserError) -> SkeletonError {
+impl From<SerdeError> for SkeletonError {
+    fn from(error: SerdeError) -> SkeletonError {
         SkeletonError::ParserError(error)
-    }
-}
-
-impl From<FromJsonError> for SkeletonError {
-    fn from(error: FromJsonError) -> SkeletonError {
-        SkeletonError::FromJsonError(error)
     }
 }

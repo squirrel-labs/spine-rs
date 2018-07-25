@@ -43,23 +43,23 @@ impl<R: Read> Atlas<R> {
     pub fn from_reader(reader: R) -> Result<Atlas<R>, AtlasError> {
         let mut lines = BufReader::new(reader).lines();
         while let Some(line) = lines.next() {
-            let line = try!(line);
+            let line = line?;
             if line.trim().len() > 0 {
 
                 let file = line;
-                let val = try!(next_line(&mut lines));
+                let val = next_line(&mut lines)?;
                 let format = val["format:".len()..].trim().to_owned();
-                let val = try!(next_line(&mut lines));
+                let val = next_line(&mut lines)?;
                 let filter = val["filter:".len()..].trim().to_owned();
-                let val = try!(next_line(&mut lines));
+                let val = next_line(&mut lines)?;
                 let repeat = val["repeat:".len()..].trim().to_owned();
 
                 return Ok(Atlas {
-                    file: file,
-                    format: format,
-                    filter: filter,
-                    repeat: repeat,
-                    lines: lines
+                    file,
+                    format,
+                    filter,
+                    repeat,
+                    lines
                 });
             }
         }
@@ -68,34 +68,34 @@ impl<R: Read> Atlas<R> {
 
     fn read_texture(&mut self, name: &str) -> Result<Texture, AtlasError> {
         let rotate = {
-            let line = try!(next_line(&mut self.lines));
-            try!(line.trim_left()["rotate:".len()..].trim().parse())
+            let line = next_line(&mut self.lines)?;
+            line.trim_left()["rotate:".len()..].trim().parse()?
         };
         let mut tuples = Vec::with_capacity(4);
         for pattern in ["xy:", "size:", "orig:", "offset:"].into_iter() {
-            let val = try!(self.parse_tuple(pattern.len()));
+            let val = self.parse_tuple(pattern.len())?;
             tuples.push(val);
         }
         let index = {
-            let line = try!(next_line(&mut self.lines));
-            try!(line.trim_left()["index:".len()..].trim().parse())
+            let line = next_line(&mut self.lines)?;
+            line.trim_left()["index:".len()..].trim().parse()?
         };
         Ok(Texture {
             name: name.to_owned(),
-            rotate: rotate,
+            rotate,
             xy: tuples[0],
             size: tuples[1],
             orig: tuples[2],
             offset: tuples[3],
-            index: index,
+            index,
         })
     }
 
     fn parse_tuple(&mut self, offset: usize) -> Result<(u16, u16), AtlasError> {
-        let line = try!(next_line(&mut self.lines));
+        let line = next_line(&mut self.lines)?;
         let mut tuple = Vec::with_capacity(2);
         for s in line.trim_left()[offset..].split(',').take(2) {
-            let a = try!(s.trim().parse());
+            let a = s.trim().parse()?;
             tuple.push(a);
         }
         if tuple.len() != 2 {

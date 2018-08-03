@@ -1,37 +1,12 @@
 use json;
-use skeleton;
-use rustc_hex::{FromHex, FromHexError};
 use skeleton::error::SkeletonError;
+use rustc_hex::{FromHex, FromHexError};
+use super::Interpolate;
 
 const BEZIER_SEGMENTS: usize = 10;
 
-trait Interpolate {
-    fn interpolate(&self, next: &Self, percent: f32) -> Self;
-}
-
-impl Interpolate for f32 {
-    fn interpolate(&self, next: &Self, percent: f32) -> Self {
-        *self + percent * (*next - *self)
-    }
-}
-
-impl Interpolate for (f32, f32) {
-    fn interpolate(&self, next: &Self, percent: f32) -> Self {
-        (self.0 + percent * (next.0 - self.0), self.1 + percent * (next.1 - self.1))
-    }
-}
-
-impl Interpolate for [u8; 4] {
-    fn interpolate(&self, next: &Self, percent: f32) -> Self {
-        [(self[0] as f32).interpolate(&(next[0] as f32), percent) as u8,
-         (self[1] as f32).interpolate(&(next[1] as f32), percent) as u8,
-         (self[2] as f32).interpolate(&(next[2] as f32), percent) as u8,
-         (self[3] as f32).interpolate(&(next[3] as f32), percent) as u8]
-    }
-}
-
 /// Curve trait to define struct with curve property (unwrapped to Linear)
-trait Curve<T> {
+pub trait Curve<T> {
     fn time(&self) -> f32;
     fn curve(&self) -> json::TimelineCurve;
     fn value(&self) -> Result<T, SkeletonError>;
@@ -95,11 +70,11 @@ impl Curve<Option<String>> for json::SlotAttachmentTimeline {
     }
 }
 
-struct CurveTimeline<T> {
-    time: f32,
-    curve: json::TimelineCurve,
-    points: Option<(Vec<f32>, Vec<f32>)>,    // bezier curve interpolations points
-    value: T,
+pub struct CurveTimeline<T> {
+    pub time: f32,
+    pub curve: json::TimelineCurve,
+    pub points: Option<(Vec<f32>, Vec<f32>)>,    // bezier curve interpolations points
+    pub value: T,
 }
 
 impl<T> CurveTimeline<T> {
@@ -109,7 +84,7 @@ impl<T> CurveTimeline<T> {
     /// from this keyframe to the next.
     /// cx1 and cx2 are from 0 to 1, representing the percent of time between the two keyframes.
     /// cy1 and cy2 are the percent of the difference between the keyframe's values.
-    fn compute_points(curve: &json::TimelineCurve) -> Option<(Vec<f32>, Vec<f32>)> {
+    pub fn compute_points(curve: &json::TimelineCurve) -> Option<(Vec<f32>, Vec<f32>)> {
 
         let (cx1, cy1, cx2, cy2) = match *curve {
             json::TimelineCurve::CurveStepped |
@@ -144,7 +119,7 @@ impl<T> CurveTimeline<T> {
     }
 
     /// Get percent conversion depending on curve type
-    fn get_percent(&self, percent: f32) -> f32 {
+    pub fn get_percent(&self, percent: f32) -> f32 {
 
 
         let &(ref x,  ref y) = match self.curve {
@@ -166,114 +141,46 @@ impl<T> CurveTimeline<T> {
 }
 
 /// Set of timelines
-struct CurveTimelines<T> {
-    timelines: Vec<CurveTimeline<T>>
+pub struct CurveTimelines<T> {
+    pub timelines: Vec<CurveTimeline<T>>
 }
 
 impl<T: Interpolate + Clone> CurveTimelines<T> {
 
     /// Converts vector of json timelines to vector or timelines
-    fn from_json_vec<U: Curve<T>> (jtimelines: Option<Vec<U>>) -> Result<CurveTimelines<T>, SkeletonError>
-    {
-    	match jtimelines {
-    	    None => Ok(CurveTimelines { timelines: Vec::new() }),
-    	    Some(timelines) => {
-    	        let mut curves = Vec::with_capacity(timelines.len());
-    	        for t in timelines.into_iter() {
-    	            let value = try!(t.value());
-    	            let curve = t.curve();
-    	            let points = CurveTimeline::<T>::compute_points(&curve);
-    	            curves.push(CurveTimeline {
-    	                time: t.time(),
-                        curve: curve,
-                        value: value,
-                        points: points
-    	            });
-    	        }
-    	        Ok(CurveTimelines { timelines: curves })
-    	    }
-    	}
-    }
-
-    /// interpolates `value` in the interval containing elapsed
-    fn interpolate(&self, elapsed: f32) -> Option<T> {
-    	if self.timelines.is_empty() || elapsed < self.timelines[0].time {
-    	    return None;
-    	}
-
-    	if let Some(w) = self.timelines.windows(2).find(|&w| elapsed < w[1].time) {
-    	    let percent = (elapsed - w[0].time) / (w[1].time - w[0].time);
-    	    let curve_percent = w[0].get_percent(percent);
-    	    Some(w[0].value.interpolate(&w[1].value, curve_percent))
-    	} else {
-    	    Some(self.timelines[self.timelines.len() - 1].value.clone())
-    	}
-    }
-}
-
-pub struct BoneTimeline {
-    translate: CurveTimelines<(f32, f32)>,
-    rotate: CurveTimelines<f32>,
-    scale: CurveTimelines<(f32, f32)>,
-}
-
-impl BoneTimeline {
-
-    /// converts json data into BoneTimeline
-    pub fn from_json(json: json::BoneTimeline)
-        -> Result<BoneTimeline, skeleton::error::SkeletonError>
-    {
-        let translate = try!(CurveTimelines::from_json_vec(json.translate));
-        let rotate = try!(CurveTimelines::from_json_vec(json.rotate));
-        let scale = try!(CurveTimelines::from_json_vec(json.scale));
-        Ok(BoneTimeline {
-            translate: translate,
-            rotate: rotate,
-            scale: scale,
-        })
-    }
-
-    /// evaluates the interpolations for elapsed time on all timelines and
-    /// returns the corresponding srt
-    pub fn srt(&self, elapsed: f32) -> skeleton::SRT {
-    	let (x, y) = self.translate.interpolate(elapsed).unwrap_or((0f32, 0f32));
-    	let rotation = self.rotate.interpolate(elapsed).unwrap_or(0f32);
-    	let (scale_x, scale_y) = self.scale.interpolate(elapsed).unwrap_or((1.0, 1.0));
-    	skeleton::SRT::new(scale_x, scale_y, rotation, x, y)
-    }
-}
-
-pub struct SlotTimeline {
-    attachment: Vec<json::SlotAttachmentTimeline>,
-    color: CurveTimelines<[u8; 4]>,
-}
-
-impl SlotTimeline {
-
-    pub fn from_json(json: json::SlotTimeline) -> Result<SlotTimeline, SkeletonError> {
-        let color = try!(CurveTimelines::from_json_vec(json.color));
-        Ok(SlotTimeline {
-            attachment: json.attachment.unwrap_or(Vec::new()),
-            color: color
-        })
-    }
-
-    pub fn interpolate_color(&self, elapsed: f32) -> [u8; 4] {
-        self.color.interpolate(elapsed).unwrap_or([255, 255, 255, 255])
-    }
-
-    pub fn interpolate_attachment(&self, elapsed: f32) -> Option<Option<&str>> {
-        if self.attachment.is_empty() || elapsed < self.attachment[0].time {
-            None
-        } else {
-            let pos = self.attachment.iter().position(|a| elapsed < a.time).unwrap_or(self.attachment.len());
-            Some(self.attachment[pos - 1].name.as_ref().map(|n| &**n))
+    pub fn from_json_vec<U: Curve<T>> (jtimelines: Option<Vec<U>>) -> Result<CurveTimelines<T>, SkeletonError> {
+        match jtimelines {
+            None => Ok(CurveTimelines { timelines: Vec::new() }),
+            Some(timelines) => {
+                let mut curves = Vec::with_capacity(timelines.len());
+                for t in timelines.into_iter() {
+                    let value = t.value()?;
+                    let curve = t.curve();
+                    let points = CurveTimeline::<T>::compute_points(&curve);
+                    curves.push(CurveTimeline {
+                        time: t.time(),
+                        curve,
+                        value,
+                        points
+                    });
+                }
+                Ok(CurveTimelines { timelines: curves })
+            }
         }
     }
 
-    pub fn get_attachment_names(&self) -> Vec<&str> {
-        self.attachment.iter()
-            .filter_map(|t| t.name.as_ref().map(|n| &**n)).collect()
-    }
+    /// interpolates `value` in the interval containing elapsed
+    pub fn interpolate(&self, elapsed: f32) -> Option<T> {
+        if self.timelines.is_empty() || elapsed < self.timelines[0].time {
+            return None;
+        }
 
+        if let Some(w) = self.timelines.windows(2).find(|&w| elapsed < w[1].time) {
+            let percent = (elapsed - w[0].time) / (w[1].time - w[0].time);
+            let curve_percent = w[0].get_percent(percent);
+            Some(w[0].value.interpolate(&w[1].value, curve_percent))
+        } else {
+            Some(self.timelines[self.timelines.len() - 1].value.clone())
+        }
+    }
 }

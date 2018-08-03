@@ -3,7 +3,7 @@ mod timeline_curve;
 
 use std::collections::HashMap;
 pub use self::timeline_curve::TimelineCurve;
-pub use self::attachment::AttachmentType;
+pub use self::attachment::{Attachment, AttachmentType};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Document {
@@ -26,6 +26,7 @@ pub struct Bone {
     pub rotation: Option<f32>,
     pub inherit_scale: Option<bool>,
     pub inherit_rotation: Option<bool>,
+    pub transform: Option<String>
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -34,23 +35,6 @@ pub struct Slot {
     pub bone: String,
     pub color: Option<String>,
     pub attachment: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Attachment {
-    pub name: Option<String>,
-    pub type_: Option<AttachmentType>,
-    pub x: Option<f32>,
-    pub y: Option<f32>,
-    pub scale_x: Option<f32>,
-    pub scale_y: Option<f32>,
-    pub rotation: Option<f32>,
-    pub width: Option<f32>,
-    pub height: Option<f32>,
-    pub fps: Option<f32>,
-    pub mode: Option<String>,       // TODO: add enum forward, backward etc ...
-    //vertices: Option<Vec<??>>     // TODO: ?
 }
 
 #[derive(Debug, Clone, Deserialize)]

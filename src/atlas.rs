@@ -7,6 +7,7 @@ use std::error::Error;
 use std::str::ParseBoolError;
 
 /// atlas texture
+#[derive(Debug)]
 pub struct Texture {
     /// name
     pub name: String,
@@ -47,6 +48,8 @@ impl<R: Read> Atlas<R> {
             if line.trim().len() > 0 {
 
                 let file = line;
+                let val = next_line(&mut lines)?;
+                let size = val["size:".len()..].trim().to_owned();
                 let val = next_line(&mut lines)?;
                 let format = val["format:".len()..].trim().to_owned();
                 let val = next_line(&mut lines)?;

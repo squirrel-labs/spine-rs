@@ -1,26 +1,31 @@
-use super::sprite::Sprites;
-use skeleton::{Skeleton, error::SkeletonError, bone::Bone, slot::Slot, srt::SRT};
-use skeleton::timeline::{BoneTimeline, SlotTimeline};
-use super::AttachmentWrapper;
 use super::iter::AnimationIter;
+use super::sprite::Sprites;
+use super::AttachmentWrapper;
+use skeleton::timeline::{BoneTimeline, SlotTimeline};
+use skeleton::{bone::Bone, error::SkeletonError, slot::Slot, srt::SRT, Skeleton};
 
 /// Struct to handle animated skin and calculate sprites
 pub struct SkinAnimation<'a> {
     anim_bones: Vec<(&'a Bone, Option<&'a BoneTimeline>)>,
     anim_slots: Vec<(&'a Slot, AttachmentWrapper<'a>, Option<&'a SlotTimeline>)>,
-    duration: f32
+    duration: f32,
 }
 
 impl<'a> SkinAnimation<'a> {
     /// Iterator<Item=Vec<CalculatedSlot>> where item are modified with timelines
-    pub fn new(skeleton: &'a Skeleton, skin: &str, animation: Option<&str>) -> Result<SkinAnimation<'a>, SkeletonError> {
+    pub fn new(
+        skeleton: &'a Skeleton,
+        skin: &str,
+        animation: Option<&str>,
+    ) -> Result<SkinAnimation<'a>, SkeletonError> {
         // search all attachments defined by the skin name (use 'default' skin if not found)
         let skin = skeleton.get_skin(skin)?;
         let default_skin = skeleton.get_skin("default")?;
 
         // get animation
         let (animation, duration) = if let Some(animation) = animation {
-            let anim = skeleton.animations
+            let anim = skeleton
+                .animations
                 .get(animation)
                 .ok_or_else(|| SkeletonError::AnimationNotFound(animation.to_owned()))?;
             (Some(anim), anim.duration)
@@ -29,32 +34,57 @@ impl<'a> SkinAnimation<'a> {
         };
 
         // get bone related data
-        let anim_bones = skeleton.bones.iter().enumerate().map(|(i, b)|
-            (b, animation.and_then(|anim| anim.bones.iter()
-                .find(|&&(idx, _)| idx == i).map(|&(_, ref a)| a)))).collect();
+        let anim_bones = skeleton
+            .bones
+            .iter()
+            .enumerate()
+            .map(|(i, b)| {
+                (
+                    b,
+                    animation.and_then(|anim| {
+                        anim.bones
+                            .iter()
+                            .find(|&&(idx, _)| idx == i)
+                            .map(|&(_, ref a)| a)
+                    }),
+                )
+            })
+            .collect();
 
-        let find_attach = |i: usize, name: &str| skin.find(i, name).or_else(|| default_skin.find(i, name));
+        let find_attach =
+            |i: usize, name: &str| skin.find(i, name).or_else(|| default_skin.find(i, name));
 
         // get slot related data
-        let anim_slots = skeleton.slots.iter().enumerate().map(|(i, s)| {
+        let anim_slots = skeleton
+            .slots
+            .iter()
+            .enumerate()
+            .map(|(i, s)| {
+                let anim = animation.and_then(|anim| {
+                    anim.slots
+                        .iter()
+                        .find(|&&(idx, _)| idx == i)
+                        .map(|&(_, ref anim)| anim)
+                });
 
-            let anim = animation.and_then(|anim|
-                anim.slots.iter().find(|&&(idx, _)| idx == i ).map(|&(_, ref anim)| anim));
-
-            let slot_attach = s.attachment.as_ref().and_then(|name| find_attach(i, &name));
-            let attach = match anim.map(|anim| anim.get_attachment_names()) {
-                Some(names) => {
-                    if names.is_empty() {
-                        AttachmentWrapper::Static(slot_attach)
-                    } else {
-                        let attachments = names.iter().map(|&name|(name, find_attach(i, name))).collect();
-                        AttachmentWrapper::Dynamic(slot_attach, attachments)
+                let slot_attach = s.attachment.as_ref().and_then(|name| find_attach(i, &name));
+                let attach = match anim.map(|anim| anim.get_attachment_names()) {
+                    Some(names) => {
+                        if names.is_empty() {
+                            AttachmentWrapper::Static(slot_attach)
+                        } else {
+                            let attachments = names
+                                .iter()
+                                .map(|&name| (name, find_attach(i, name)))
+                                .collect();
+                            AttachmentWrapper::Dynamic(slot_attach, attachments)
+                        }
                     }
-                },
-                None => AttachmentWrapper::Static(slot_attach)
-            };
-            (s, attach, anim)
-        }).collect();
+                    None => AttachmentWrapper::Static(slot_attach),
+                };
+                (s, attach, anim)
+            })
+            .collect();
 
         Ok(SkinAnimation {
             duration,
@@ -70,12 +100,10 @@ impl<'a> SkinAnimation<'a> {
 
     /// gets all bones srts at given time
     fn get_bones_srts(&self, time: f32) -> Vec<SRT> {
-
         let mut srts: Vec<SRT> = Vec::with_capacity(self.anim_bones.len());
-        for &(b, anim) in &self.anim_bones {
-
+        for &(bone, anim) in &self.anim_bones {
             // starts with setup pose
-            let mut srt = b.srt.clone();
+            let mut srt = bone.srt.clone();
             let mut rotation = 0.0;
 
             // add animation srt
@@ -88,12 +116,12 @@ impl<'a> SkinAnimation<'a> {
             }
 
             // inherit world from parent srt
-            if let Some(ref parent_srt) = b.parent_index.and_then(|p| srts.get(p)) {
+            if let Some(ref parent_srt) = bone.parent_index.and_then(|p| srts.get(p)) {
                 srt.position = parent_srt.transform(srt.position);
-                if b.inherit_rotation {
+                if bone.inherit_rotation {
                     rotation += parent_srt.rotation;
                 }
-                if b.inherit_scale {
+                if bone.inherit_scale {
                     srt.scale[0] *= parent_srt.scale[0];
                     srt.scale[1] *= parent_srt.scale[1];
                 }
@@ -112,18 +140,13 @@ impl<'a> SkinAnimation<'a> {
 
     /// Interpolates animated slots at given time
     pub fn interpolate<'b: 'a>(&'b self, time: f32) -> Option<Sprites<'b>> {
-
         if time > self.duration {
             return None;
         }
 
         let srts = self.get_bones_srts(time);
         let iter = self.anim_slots.iter();
-        Some(Sprites {
-            iter,
-            srts,
-            time
-        })
+        Some(Sprites { iter, srts, time })
     }
 
     /// Creates an iterator which iterates sprites at delta seconds interval
@@ -131,7 +154,7 @@ impl<'a> SkinAnimation<'a> {
         AnimationIter {
             skin_animation: &self,
             time: 0f32,
-            delta
+            delta,
         }
     }
 }

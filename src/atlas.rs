@@ -1,9 +1,9 @@
 //! Module to import .atlas files
 
-use std::io::{BufReader, Lines};
-use std::io::prelude::*;
-use std::fmt;
 use std::error::Error;
+use std::fmt;
+use std::io::prelude::*;
+use std::io::{BufReader, Lines};
 use std::str::ParseBoolError;
 
 /// atlas texture
@@ -35,34 +35,39 @@ pub struct Atlas<R: Read> {
     pub filter: String,
     /// repeat
     pub repeat: String,
-    lines: Lines<BufReader<R>>
+    lines: Lines<BufReader<R>>,
+}
+
+fn mapping_value<R: Read>(
+    lines: &mut std::io::Lines<BufReader<R>>,
+    name: &str,
+) -> Result<String, AtlasError> {
+    let text = next_line(lines)?;
+    if text.len() >= name.len() {
+        Ok(text[name.len()..].trim().to_string())
+    } else {
+        Err(AtlasError::Unexpected("unexpected mapping name"))
+    }
 }
 
 impl<R: Read> Atlas<R> {
-
     /// consumes a reader on .atlas file and create a Atlas iterator
     pub fn from_reader(reader: R) -> Result<Atlas<R>, AtlasError> {
         let mut lines = BufReader::new(reader).lines();
         while let Some(line) = lines.next() {
             let line = line?;
-            if line.trim().len() > 0 {
-
-                let file = line;
-                let val = next_line(&mut lines)?;
-                let size = val["size:".len()..].trim().to_owned();
-                let val = next_line(&mut lines)?;
-                let format = val["format:".len()..].trim().to_owned();
-                let val = next_line(&mut lines)?;
-                let filter = val["filter:".len()..].trim().to_owned();
-                let val = next_line(&mut lines)?;
-                let repeat = val["repeat:".len()..].trim().to_owned();
+            if !line.trim().is_empty() {
+                mapping_value(&mut lines, "size:")?;
+                let format = mapping_value(&mut lines, "format:")?;
+                let filter = mapping_value(&mut lines, "filter:")?;
+                let repeat = mapping_value(&mut lines, "repeat:")?;
 
                 return Ok(Atlas {
-                    file,
+                    file: line,
                     format,
                     filter,
                     repeat,
-                    lines
+                    lines,
                 });
             }
         }
@@ -72,16 +77,16 @@ impl<R: Read> Atlas<R> {
     fn read_texture(&mut self, name: &str) -> Result<Texture, AtlasError> {
         let rotate = {
             let line = next_line(&mut self.lines)?;
-            line.trim_left()["rotate:".len()..].trim().parse()?
+            line.trim_start()["rotate:".len()..].trim().parse()?
         };
         let mut tuples = Vec::with_capacity(4);
-        for pattern in ["xy:", "size:", "orig:", "offset:"].into_iter() {
+        for pattern in &["xy:", "size:", "orig:", "offset:"] {
             let val = self.parse_tuple(pattern.len())?;
             tuples.push(val);
         }
         let index = {
             let line = next_line(&mut self.lines)?;
-            line.trim_left()["index:".len()..].trim().parse()?
+            line.trim_start()["index:".len()..].trim().parse()?
         };
         Ok(Texture {
             name: name.to_owned(),
@@ -97,7 +102,7 @@ impl<R: Read> Atlas<R> {
     fn parse_tuple(&mut self, offset: usize) -> Result<(u16, u16), AtlasError> {
         let line = next_line(&mut self.lines)?;
         let mut tuple = Vec::with_capacity(2);
-        for s in line.trim_left()[offset..].split(',').take(2) {
+        for s in line.trim_start()[offset..].split(',').take(2) {
             let a = s.trim().parse()?;
             tuple.push(a);
         }
@@ -113,7 +118,7 @@ fn next_line<R: Read>(lines: &mut Lines<BufReader<R>>) -> Result<String, AtlasEr
     match lines.next() {
         Some(Ok(line)) => Ok(line),
         Some(Err(e)) => Err(AtlasError::from(e)),
-        None => Err(AtlasError::Unexpected("EOF"))
+        None => Err(AtlasError::Unexpected("EOF")),
     }
 }
 
@@ -124,12 +129,14 @@ impl<R: Read> Iterator for Atlas<R> {
             return match self.lines.next() {
                 Some(Ok(name)) => {
                     let name = name.trim();
-                    if name.len() == 0 { continue; }
+                    if name.is_empty() {
+                        continue;
+                    }
                     Some(self.read_texture(name.trim()))
-                },
+                }
                 Some(Err(e)) => Some(Err(AtlasError::from(e))),
-                None         => None
-            }
+                None => None,
+            };
         }
     }
 }
@@ -143,7 +150,7 @@ pub enum AtlasError {
     /// error when parsing u16 or i16
     ParseIntError(::std::num::ParseIntError),
     /// error when parsing boolean
-    ParseBoolError(::std::str::ParseBoolError)
+    ParseBoolError(::std::str::ParseBoolError),
 }
 
 impl fmt::Display for AtlasError {

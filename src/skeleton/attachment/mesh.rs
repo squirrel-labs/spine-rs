@@ -1,5 +1,6 @@
 use json;
 
+#[derive(Debug)]
 pub struct MeshAttachment {
     pub name: Option<String>,
     pub triangles: Vec<u16>,
@@ -8,7 +9,7 @@ pub struct MeshAttachment {
     uvs: Vec<f32>,
     bone_indices: Option<Vec<u32>>,
     pub is_weighted: bool,
-    pub world_vertices_length: u32
+    pub world_vertices_length: u32,
 }
 
 impl MeshAttachment {
@@ -46,12 +47,12 @@ impl MeshAttachment {
 
             'items: loop {
                 if let Some(bone_count) = item_iter.next() {
-                    let mut bones_iter = item_iter.by_ref().take(bone_count.clone() as usize * 4);
+                    let mut bones_iter = item_iter.by_ref().take(*bone_count as usize * 4);
                     'bones: loop {
                         if let Some(bone_index) = bones_iter.next() {
-                            let bind_x = bones_iter.next().map(|w| *w).unwrap();
-                            let bind_y = bones_iter.next().map(|w| *w).unwrap();
-                            let weight = bones_iter.next().map(|w| *w).unwrap();
+                            let bind_x = bones_iter.next().copied().unwrap();
+                            let bind_y = bones_iter.next().copied().unwrap();
+                            let weight = bones_iter.next().copied().unwrap();
 
                             bone_indices.push(*bone_index as u32);
                             weights.push(bind_x);
@@ -73,3 +74,4 @@ impl MeshAttachment {
 
     fn update_uvs(&self) {}
 }
+

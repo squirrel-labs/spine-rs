@@ -1,5 +1,5 @@
-use serde::{Deserialize, Deserializer};
 use serde::de::{Error as SerdeError, Visitor};
+use serde::{Deserialize, Deserializer};
 use std::fmt;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -17,7 +17,7 @@ pub struct Attachment {
     pub width: Option<f32>,
     pub height: Option<f32>,
     pub fps: Option<f32>,
-    pub mode: Option<String>,       // TODO: add enum forward, backward etc ...
+    pub mode: Option<String>, // TODO: add enum forward, backward etc ...
     //mesh
     pub path: Option<String>,
     pub vertices: Option<Vec<f32>>,
@@ -26,10 +26,12 @@ pub struct Attachment {
     pub hull: Option<i32>,
     pub edges: Option<Vec<i32>>,
     #[serde(default = "white_color")]
-    pub color: String
+    pub color: String,
 }
 
-fn white_color() -> String { "FFFFFFFF".to_owned() }
+fn white_color() -> String {
+    "FFFFFFFF".to_owned()
+}
 
 #[derive(Debug, Clone)]
 pub enum AttachmentType {
@@ -41,7 +43,9 @@ pub enum AttachmentType {
 
 impl<'a> Deserialize<'a> for AttachmentType {
     fn deserialize<D>(deserializer: D) -> Result<AttachmentType, D::Error>
-        where D: Deserializer<'a> {
+    where
+        D: Deserializer<'a>,
+    {
         deserializer.deserialize_any(AttachmentTypeVisitor)
     }
 }
@@ -52,20 +56,29 @@ impl<'a> Visitor<'a> for AttachmentTypeVisitor {
     type Value = AttachmentType;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "one of (region, regionsequence, boundingbox, mesh)")
+        write!(
+            formatter,
+            "one of (region, regionsequence, boundingbox, mesh)"
+        )
     }
 
-    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: SerdeError {
+    fn visit_str<E: SerdeError>(self, value: &str) -> Result<Self::Value, E> {
         match value {
             "region" => Ok(AttachmentType::Region),
             "regionsequence" => Ok(AttachmentType::RegionSequence),
             "boundingbox" => Ok(AttachmentType::BoundingBox),
             "mesh" => Ok(AttachmentType::Mesh),
-            _ => Err(SerdeError::custom(format!("Attachment type must be one of (region, regionsequence, boundingbox, mesh)")))
+            _ => Err(SerdeError::custom(
+                "Attachment type must be one of (region, regionsequence, boundingbox, mesh)"
+                    .to_string(),
+            )),
         }
     }
 
-    fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: SerdeError {
+    fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+    where
+        E: SerdeError,
+    {
         self.visit_str(value.as_ref())
     }
 }

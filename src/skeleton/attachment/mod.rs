@@ -6,6 +6,7 @@ use self::region::RegionAttachment;
 use super::json;
 use super::json::AttachmentType;
 
+#[derive(Debug)]
 pub enum Attachment {
     Region(RegionAttachment),
     Mesh(MeshAttachment),
@@ -24,13 +25,19 @@ impl Attachment {
         }
     }
     /// converts json data into skeleton data
-    pub fn from_json(attachment: json::Attachment, name: Option<String>) -> Result<Attachment, AttachmentError> {
+    pub fn from_json(
+        attachment: json::Attachment,
+        name: Option<String>,
+    ) -> Result<Attachment, AttachmentError> {
         let t = attachment.type_.clone();
 
         match t.unwrap_or(AttachmentType::Region) {
-            AttachmentType::Region => Ok(Attachment::Region(RegionAttachment::new(attachment, name))),
+            AttachmentType::Region => {
+                Ok(Attachment::Region(RegionAttachment::new(attachment, name)))
+            }
             AttachmentType::Mesh => Ok(Attachment::Mesh(MeshAttachment::new(attachment, name))),
             _ => Err(AttachmentError::UnknownType),
         }
     }
 }
+

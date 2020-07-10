@@ -80,10 +80,13 @@
 
 #[macro_use]
 extern crate serde_derive;
+extern crate rustc_hex;
 extern crate serde;
 extern crate serde_json;
-extern crate rustc_hex;
 
+pub mod atlas;
 mod json;
 pub mod skeleton;
-pub mod atlas;
+
+#[macro_use]
+extern crate log;

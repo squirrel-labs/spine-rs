@@ -4,19 +4,23 @@ pub mod iter;
 pub mod skin;
 pub mod sprite;
 
-use json;
+use super::timeline::{BoneTimeline, SlotTimeline};
 use super::util;
 use super::Bone;
-use super::Slot;
 use super::SkeletonError;
-use super::timeline::{BoneTimeline, SlotTimeline};
-use std::collections::HashMap;
+use super::Slot;
+use json;
 use skeleton::attachment::Attachment;
+use std::collections::HashMap;
 
 /// Wrapper on attachment depending whether slot attachment is animated or not
+#[derive(Debug)]
 pub enum AttachmentWrapper<'a> {
     Static(Option<&'a Attachment>),
-    Dynamic(Option<&'a Attachment>, HashMap<&'a str, Option<&'a Attachment>>),
+    Dynamic(
+        Option<&'a Attachment>,
+        HashMap<&'a str, Option<&'a Attachment>>,
+    ),
 }
 
 /// Animation with precomputed data

@@ -53,6 +53,7 @@ impl<'a> Iterator for Sprites<'a> {
                             .map(|n| &**n)
                     })
                     .expect("no attachment name provided");
+                log::info!("schmii {:?}", skin_attach);
                 let slot_srt = match skin_attach {
                     Attachment::Region(region) => region.srt.clone(),
                     Attachment::Mesh(_) => todo!("handle"),

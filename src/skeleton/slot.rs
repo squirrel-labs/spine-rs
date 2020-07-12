@@ -1,7 +1,7 @@
 use super::bone::Bone;
-use super::SkeletonError;
 use super::json;
 use super::util;
+use super::SkeletonError;
 use rustc_hex::{FromHex, FromHexError};
 
 /// skeleton slot

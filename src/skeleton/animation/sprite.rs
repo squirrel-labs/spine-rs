@@ -15,6 +15,30 @@ pub struct Sprite<'a> {
     pub slot_srt: SRT,
 }
 
+impl<'a> Sprite<'a> {
+    pub fn to_matrix3(&self) -> [[f32; 3]; 3] {
+        let mat1 = self.slot_srt.to_matrix3();
+        let mat2 = self.srt.to_matrix3();
+        [
+            [
+                mat2[0][0] * mat1[0][0] + mat2[1][0] * mat1[0][1],
+                mat2[0][1] * mat1[0][0] + mat2[1][1] * mat1[0][1],
+                0.0,
+            ],
+            [
+                mat2[1][0] * mat1[1][1] + mat2[0][0] * mat1[1][0],
+                mat2[1][1] * mat1[1][1] + mat2[0][1] * mat1[1][0],
+                0.0,
+            ],
+            [
+                mat2[2][0] + mat2[1][0] * mat1[2][1] + mat2[0][0] * mat1[2][0],
+                mat2[2][1] + mat2[1][1] * mat1[2][1] + mat2[0][1] * mat1[2][0],
+                1.0,
+            ],
+        ]
+    }
+}
+
 /// Iterator over all sprites interpolated at a given time
 pub struct Sprites<'a> {
     pub iter: Iter<'a, (&'a Slot, AttachmentWrapper<'a>, Option<&'a SlotTimeline>)>,
@@ -53,10 +77,9 @@ impl<'a> Iterator for Sprites<'a> {
                             .map(|n| &**n)
                     })
                     .expect("no attachment name provided");
-                log::info!("schmii {:?}", skin_attach);
                 let slot_srt = match skin_attach {
                     Attachment::Region(region) => region.srt.clone(),
-                    Attachment::Mesh(_) => todo!("handle"),
+                    Attachment::Mesh(_) => unimplemented!("Mesh srt's are currently not supported"),
                 };
 
                 return Some(Sprite {

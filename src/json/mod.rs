@@ -1,16 +1,16 @@
 mod attachment;
 mod timeline_curve;
 
-use std::collections::HashMap;
-pub use self::timeline_curve::TimelineCurve;
 pub use self::attachment::{Attachment, AttachmentType};
+pub use self::timeline_curve::TimelineCurve;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Document {
     pub bones: Option<Vec<Bone>>,
     pub slots: Option<Vec<Slot>>,
     pub skins: Option<HashMap<String, HashMap<String, HashMap<String, Attachment>>>>,
-    pub animations: Option<HashMap<String, Animation>>
+    pub animations: Option<HashMap<String, Animation>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -26,7 +26,7 @@ pub struct Bone {
     pub rotation: Option<f32>,
     pub inherit_scale: Option<bool>,
     pub inherit_rotation: Option<bool>,
-    pub transform: Option<String>
+    pub transform: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

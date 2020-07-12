@@ -41,8 +41,8 @@ impl SRT {
     /// convert srt to a 3x3 transformation matrix (2D)
     pub fn to_matrix3(&self) -> [[f32; 3]; 3] {
         [
-            [self.cos * self.scale[0], self.sin, 0.0],
-            [-self.sin, self.cos * self.scale[1], 0.0],
+            [self.cos * self.scale[0], self.sin * self.scale[0], 0.0],
+            [-self.sin * self.scale[0], self.cos * self.scale[1], 0.0],
             [self.position[0], self.position[1], 1.0f32],
         ]
     }

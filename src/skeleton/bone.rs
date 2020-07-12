@@ -1,7 +1,7 @@
-use super::SkeletonError;
 use super::json;
-use super::util;
 use super::srt::SRT;
+use super::util;
+use super::SkeletonError;
 
 /// skeleton bone
 pub struct Bone {
@@ -11,7 +11,7 @@ pub struct Bone {
     pub srt: SRT,
     pub inherit_scale: bool,
     pub inherit_rotation: bool,
-    pub transform_mode: TransformMode
+    pub transform_mode: TransformMode,
 }
 
 impl Bone {
@@ -21,7 +21,9 @@ impl Bone {
             None => None,
         };
         Ok(Bone {
-            transform_mode: bone.transform.map_or(TransformMode::Normal, |mode| TransformMode::from(mode)),
+            transform_mode: bone
+                .transform
+                .map_or(TransformMode::Normal, |mode| TransformMode::from(mode)),
             name: bone.name,
             parent_index: index,
             // length: bone.length.unwrap_or(0f32),
@@ -43,7 +45,7 @@ pub enum TransformMode {
     OnlyTranslation,
     NoRotationOrReflection,
     NoScaleOrReflection,
-    NoScale
+    NoScale,
 }
 
 impl From<String> for TransformMode {
@@ -54,7 +56,7 @@ impl From<String> for TransformMode {
             "noRotationOrReflection" => TransformMode::NoRotationOrReflection,
             "noScaleOrReflection" => TransformMode::NoScaleOrReflection,
             "noScale" => TransformMode::NoScale,
-            _ => TransformMode::Normal
+            _ => TransformMode::Normal,
         }
     }
 }

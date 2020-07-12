@@ -1,12 +1,12 @@
 pub mod animation;
-pub mod error;
+pub mod attachment;
 pub mod bone;
+pub mod error;
 pub mod skin;
 pub mod slot;
-pub mod util;
-pub mod attachment;
-pub mod timeline;
 pub mod srt;
+pub mod timeline;
+pub mod util;
 
 use json;
 use serde_json;
@@ -15,12 +15,12 @@ use std::io::Read;
 
 // Reexport skeleton modules
 use self::animation::skin::SkinAnimation;
-use self::error::SkeletonError;
-use self::bone::Bone;
-use self::slot::Slot;
-use self::skin::Skin;
 use self::animation::Animation;
 use self::attachment::Attachment;
+use self::bone::Bone;
+use self::error::SkeletonError;
+use self::skin::Skin;
+use self::slot::Slot;
 
 /// Skeleton data converted from json and loaded into memory
 pub struct Skeleton {
@@ -80,7 +80,10 @@ impl Skeleton {
                     let attachments = attachments
                         .into_iter()
                         .map(|(name, attachment)| {
-                            (name.clone(), Attachment::from_json(attachment, Some(name)).unwrap())
+                            (
+                                name.clone(),
+                                Attachment::from_json(attachment, Some(name)).unwrap(),
+                            )
                         })
                         .collect();
                     skin.push((slot_index, attachments));
@@ -127,7 +130,8 @@ impl Skeleton {
     ///
     /// The purpose of this function is to allow you to preload what you need.
     pub fn get_attachments_names(&self) -> Vec<&str> {
-        let mut names: Vec<_> = self.skins
+        let mut names: Vec<_> = self
+            .skins
             .values()
             .flat_map(|skin| {
                 skin.slots.iter().flat_map(|&(_, ref attach)| {

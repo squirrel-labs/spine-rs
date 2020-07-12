@@ -74,4 +74,3 @@ impl MeshAttachment {
 
     fn update_uvs(&self) {}
 }
-

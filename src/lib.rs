@@ -87,6 +87,3 @@ extern crate serde_json;
 pub mod atlas;
 mod json;
 pub mod skeleton;
-
-#[macro_use]
-extern crate log;

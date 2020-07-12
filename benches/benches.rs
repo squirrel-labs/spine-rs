@@ -8,14 +8,11 @@ use std::io::BufReader;
 #[bench]
 fn loading_json(bencher: &mut test::Bencher) {
     let src: &[u8] = include_bytes!("../tests/example.json");
-    bencher.iter(|| {
-        spine::skeleton::Skeleton::from_reader(BufReader::new(src))
-    });
+    bencher.iter(|| spine::skeleton::Skeleton::from_reader(BufReader::new(src)));
 }
 
 #[bench]
 fn animation(bencher: &mut test::Bencher) {
-
     let src: &[u8] = include_bytes!("../tests/example.json");
     let doc = spine::skeleton::Skeleton::from_reader(BufReader::new(src)).unwrap();
 
@@ -28,7 +25,6 @@ fn animation(bencher: &mut test::Bencher) {
 
 #[bench]
 fn animation_all(bencher: &mut test::Bencher) {
-
     let src: &[u8] = include_bytes!("../tests/example.json");
     let doc = spine::skeleton::Skeleton::from_reader(BufReader::new(src)).unwrap();
 

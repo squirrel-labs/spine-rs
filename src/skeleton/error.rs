@@ -2,12 +2,11 @@
 
 use rustc_hex::FromHexError;
 use serde_json::error::Error as SerdeError;
-use std::fmt;
 use std::error::Error;
+use std::fmt;
 
 /// Error that can happen while calculating an animation.
 pub enum SkeletonError {
-
     /// Parser error
     ParserError(SerdeError),
 
@@ -33,9 +32,13 @@ impl fmt::Debug for SkeletonError {
             SkeletonError::BoneNotFound(ref name) => write!(f, "Cannot find bone '{}'", name),
             SkeletonError::SlotNotFound(ref name) => write!(f, "Cannot find slot '{}'", name),
             SkeletonError::SkinNotFound(ref name) => write!(f, "Cannot find skin '{}'", name),
-            SkeletonError::AnimationNotFound(ref name) => write!(f, "Cannot find animation '{}'", name),
-            SkeletonError::InvalidColor(ref e)  => write!(f, "Cannot convert color to hexadecimal: {:?}", e),
-            SkeletonError::ParserError(ref e)   => write!(f, "Cannot deserialize from json: {:?}", e),
+            SkeletonError::AnimationNotFound(ref name) => {
+                write!(f, "Cannot find animation '{}'", name)
+            }
+            SkeletonError::InvalidColor(ref e) => {
+                write!(f, "Cannot convert color to hexadecimal: {:?}", e)
+            }
+            SkeletonError::ParserError(ref e) => write!(f, "Cannot deserialize from json: {:?}", e),
         }
     }
 }
@@ -53,7 +56,9 @@ impl Error for SkeletonError {
             SkeletonError::SlotNotFound(_) => "slot cannot be found in skeleton slots",
             SkeletonError::SkinNotFound(_) => "skin cannot be found in skeleton skins",
             SkeletonError::InvalidColor(_) => "color cannot be parsed",
-            SkeletonError::AnimationNotFound(_) => "animation cannot be found in skeleton animations",
+            SkeletonError::AnimationNotFound(_) => {
+                "animation cannot be found in skeleton animations"
+            }
             SkeletonError::ParserError(_) => "error while parsing json skeleton",
         }
     }

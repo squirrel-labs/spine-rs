@@ -12,7 +12,6 @@ pub struct RegionAttachment {
 
 impl RegionAttachment {
     pub fn new(attachment: json::Attachment, name: Option<String>) -> RegionAttachment {
-        log::debug!("{:?}", attachment);
         let (w2, h2) = (
             attachment.width.unwrap_or(0f32) * 0.5,
             attachment.height.unwrap_or(0f32) * 0.5,
@@ -30,4 +29,3 @@ impl RegionAttachment {
         }
     }
 }
-

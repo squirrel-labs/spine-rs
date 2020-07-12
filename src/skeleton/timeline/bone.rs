@@ -1,6 +1,6 @@
-use json;
 use super::CurveTimelines;
-use skeleton::{srt::SRT, error::SkeletonError};
+use json;
+use skeleton::{error::SkeletonError, srt::SRT};
 
 pub struct BoneTimeline {
     translate: CurveTimelines<(f32, f32)>,
@@ -9,11 +9,8 @@ pub struct BoneTimeline {
 }
 
 impl BoneTimeline {
-
     /// converts json data into BoneTimeline
-    pub fn from_json(json: json::BoneTimeline)
-                     -> Result<BoneTimeline, SkeletonError>
-    {
+    pub fn from_json(json: json::BoneTimeline) -> Result<BoneTimeline, SkeletonError> {
         let translate = CurveTimelines::from_json_vec(json.translate)?;
         let rotate = CurveTimelines::from_json_vec(json.rotate)?;
         let scale = CurveTimelines::from_json_vec(json.scale)?;

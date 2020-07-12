@@ -9,10 +9,8 @@ fn animations_names() {
 
     let names = doc.get_animations_names();
 
-    assert!(names.get(0).unwrap() == &"walk" ||
-        names.get(0).unwrap() == &"jump");
-    assert!(names.get(1).unwrap() == &"walk" ||
-        names.get(1).unwrap() == &"jump");
+    assert!(names.get(0).unwrap() == &"walk" || names.get(0).unwrap() == &"jump");
+    assert!(names.get(1).unwrap() == &"walk" || names.get(1).unwrap() == &"jump");
 
     assert!(names.contains(&"walk"));
     assert!(names.contains(&"jump"));
@@ -41,9 +39,27 @@ fn attachement_names() {
     let mut results = doc.get_attachments_names();
     results.sort();
 
-    assert!(results == [
-        "eyes", "eyes-closed", "head", "left-arm", "left-foot", "left-hand", "left-lower-leg",
-        "left-shoulder", "left-upper-leg", "neck", "pelvis", "right-arm", "right-foot",
-        "right-hand", "right-lower-leg", "right-shoulder", "right-upper-leg", "torso"
-    ]);
+    assert!(
+        results
+            == [
+                "eyes",
+                "eyes-closed",
+                "head",
+                "left-arm",
+                "left-foot",
+                "left-hand",
+                "left-lower-leg",
+                "left-shoulder",
+                "left-upper-leg",
+                "neck",
+                "pelvis",
+                "right-arm",
+                "right-foot",
+                "right-hand",
+                "right-lower-leg",
+                "right-shoulder",
+                "right-upper-leg",
+                "torso"
+            ]
+    );
 }

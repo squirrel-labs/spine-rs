@@ -1,12 +1,12 @@
-use super::sprite::Sprites;
 use super::skin::SkinAnimation;
+use super::sprite::Sprites;
 
 /// Iterator over a constant period
 #[derive(Clone)]
 pub struct AnimationIter<'a> {
     pub skin_animation: &'a SkinAnimation<'a>,
     pub time: f32,
-    pub delta: f32
+    pub delta: f32,
 }
 
 impl<'a> Iterator for AnimationIter<'a> {

@@ -1,6 +1,6 @@
 use super::Bone;
-use super::Slot;
 use super::SkeletonError;
+use super::Slot;
 
 pub fn bone_index(name: &str, bones: &[Bone]) -> Result<usize, SkeletonError> {
     bones

@@ -16,6 +16,13 @@ impl SlotTimeline {
         })
     }
 
+    pub fn from_timelines(name: Option<String>) -> SlotTimeline {
+        SlotTimeline {
+            attachment: vec![json::SlotAttachmentTimeline { time: 0.0, name }],
+            color: CurveTimelines::<[u8; 4]>::empty(),
+        }
+    }
+
     pub fn interpolate_color(&self, elapsed: f32) -> [u8; 4] {
         self.color
             .interpolate(elapsed)

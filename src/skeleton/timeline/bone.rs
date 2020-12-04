@@ -8,6 +8,10 @@ pub struct BoneTimeline {
     scale: CurveTimelines<(f32, f32)>,
 }
 
+fn arr_tup(arr: [f32; 2]) -> (f32, f32) {
+    (arr[0], arr[1])
+}
+
 impl BoneTimeline {
     /// converts json data into BoneTimeline
     pub fn from_json(json: json::BoneTimeline) -> Result<BoneTimeline, SkeletonError> {
@@ -19,6 +23,20 @@ impl BoneTimeline {
             rotate,
             scale,
         })
+    }
+
+    pub fn from_srts(a: SRT, b: SRT, time: f32) -> BoneTimeline {
+        let scale =
+            CurveTimelines::<(f32, f32)>::from_srts(arr_tup(a.scale), arr_tup(b.scale), time);
+        let rotate = CurveTimelines::<f32>::from_srts(a.rotation, b.rotation, time);
+        let translate =
+            CurveTimelines::<(f32, f32)>::from_srts(arr_tup(a.position), arr_tup(b.position), time);
+
+        BoneTimeline {
+            translate,
+            rotate,
+            scale,
+        }
     }
 
     /// evaluates the interpolations for elapsed time on all timelines and

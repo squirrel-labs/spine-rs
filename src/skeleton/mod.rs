@@ -113,7 +113,34 @@ impl Skeleton {
         skin: &str,
         animation: Option<&str>,
     ) -> Result<SkinAnimation<'a>, SkeletonError> {
-        SkinAnimation::new(self, skin, animation)
+        SkinAnimation::new(self, skin, animation, None)
+    }
+
+    /// Gets a SkinAnimation which can interpolate slots at a given time starting from the current
+    /// position
+    pub fn get_animated_skin_with_transiton<'a>(
+        &'a self,
+        skin: &str,
+        next_animation: &str,
+        current_animation: &str,
+        current_time: f32,
+        start_offset: f32,
+        fade_duration: f32,
+    ) -> Result<SkinAnimation<'a>, SkeletonError> {
+        let trans = Animation::from_animations(
+            self.animations
+                .get(current_animation)
+                .ok_or(SkeletonError::AnimationNotFound(
+                    current_animation.to_owned(),
+                ))?,
+            self.animations
+                .get(next_animation)
+                .ok_or(SkeletonError::AnimationNotFound(next_animation.to_owned()))?,
+            current_time,
+            start_offset,
+            fade_duration,
+        );
+        SkinAnimation::new(self, skin, Some(next_animation), Some(trans))
     }
 
     /// Returns the list of all skins names in this document.

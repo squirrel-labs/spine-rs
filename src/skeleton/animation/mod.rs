@@ -68,6 +68,61 @@ impl Animation {
         })
     }
 
+    pub fn from_animations(
+        first_animation: &Animation,
+        second_animation: &Animation,
+        current_time: f32,
+        start_offest: f32,
+        duration: f32,
+    ) -> Animation {
+        let bones = first_animation
+            .bones
+            .iter()
+            .map(|(i, s)| {
+                if let Some((_, st)) = second_animation.bones.iter().find(|(j, _)| j == i) {
+                    (
+                        *i,
+                        BoneTimeline::from_srts(
+                            s.srt(current_time),
+                            st.srt(start_offest),
+                            duration,
+                        ),
+                    )
+                } else {
+                    (
+                        *i,
+                        BoneTimeline::from_srts(
+                            s.srt(current_time),
+                            s.srt(current_time + duration),
+                            duration,
+                        ),
+                    )
+                }
+            })
+            .collect();
+        let slots = first_animation
+            .slots
+            .iter()
+            .map(|(i, s)| {
+                (
+                    *i,
+                    SlotTimeline::from_timelines(
+                        s.interpolate_attachment(current_time)
+                            .flatten()
+                            .map(|x| x.to_owned()),
+                    ),
+                )
+            })
+            .collect();
+        Animation {
+            duration,
+            slots,
+            bones,
+            events: first_animation.events.clone(),
+            draworder: first_animation.draworder.clone(),
+        }
+    }
+
     pub fn duration(animation: &json::Animation) -> f32 {
         animation
             .bones

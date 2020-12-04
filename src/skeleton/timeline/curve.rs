@@ -1,5 +1,5 @@
 use super::Interpolate;
-use json;
+use crate::json::{self, TimelineCurve};
 use rustc_hex::{FromHex, FromHexError};
 use skeleton::error::SkeletonError;
 
@@ -191,6 +191,28 @@ impl<T: Interpolate + Clone> CurveTimelines<T> {
                 Ok(CurveTimelines { timelines: curves })
             }
         }
+    }
+
+    pub fn empty() -> CurveTimelines<T> {
+        CurveTimelines { timelines: vec![] }
+    }
+    pub fn from_srts(a: T, b: T, time: f32) -> CurveTimelines<T> {
+        let curve = TimelineCurve::CurveLinear;
+        let curves = vec![
+            CurveTimeline {
+                time: 0.0,
+                curve: curve.clone(),
+                value: a,
+                points: None,
+            },
+            CurveTimeline {
+                time,
+                curve,
+                value: b,
+                points: None,
+            },
+        ];
+        CurveTimelines { timelines: curves }
     }
 
     /// interpolates `value` in the interval containing elapsed

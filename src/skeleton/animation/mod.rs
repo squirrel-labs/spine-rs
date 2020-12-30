@@ -25,7 +25,7 @@ pub enum AttachmentWrapper<'a> {
 
 /// Animation with precomputed data
 pub struct Animation {
-    bones: Vec<(usize, BoneTimeline)>,
+    pub bones: Vec<(usize, BoneTimeline)>,
     slots: Vec<(usize, SlotTimeline)>,
     events: Vec<json::EventKeyframe>,
     draworder: Vec<json::DrawOrderTimeline>,
@@ -49,6 +49,7 @@ impl Animation {
                 abones.push((index, timeline));
             }
         }
+        abones.sort_by_key(|(i, _)| *i);
 
         let mut aslots = Vec::new();
         for jslots in animation.slots.into_iter() {
@@ -66,6 +67,70 @@ impl Animation {
             events: animation.events.unwrap_or(Vec::new()),
             draworder: animation.draworder.unwrap_or(Vec::new()),
         })
+    }
+
+    pub fn from_animations(
+        first_animation: &[(usize, BoneTimeline)],
+        second_animation: &Animation,
+        bones: &[Bone],
+        current_time: f32,
+        start_offset: f32,
+        duration: f32,
+    ) -> Animation {
+        let mut anim1 = first_animation.iter();
+        let mut anim2 = second_animation.bones.iter();
+        let mut b1 = anim1.next();
+        let mut b2 = anim2.next();
+        let mut nbones: Vec<(usize, BoneTimeline)> = Vec::with_capacity(bones.len());
+        for (i, _) in bones.iter().enumerate() {
+            let a1 = match b1 {
+                Some((b, anim)) if *b == i => {
+                    b1 = anim1.next();
+                    Some(anim)
+                }
+                _ => None,
+            };
+            let a2 = match b2 {
+                Some((b, anim)) if *b == i => {
+                    b2 = anim2.next();
+                    Some(anim)
+                }
+                _ => None,
+            };
+            match (a1, a2) {
+                (Some(a1), Some(a2)) => nbones.push((
+                    i,
+                    BoneTimeline::from_timelines(a1, a2, current_time, start_offset, duration),
+                )),
+                (Some(a1), None) | (None, Some(a1)) => nbones.push((
+                    i,
+                    BoneTimeline::from_timelines(a1, a1, current_time, start_offset, duration),
+                )),
+                (None, None) => (),
+            }
+        }
+        let bones = nbones;
+        let slots = second_animation
+            .slots
+            .iter()
+            .map(|(i, s)| {
+                (
+                    *i,
+                    SlotTimeline::from_timelines(
+                        s.interpolate_attachment(current_time)
+                            .flatten()
+                            .map(|x| x.to_owned()),
+                    ),
+                )
+            })
+            .collect();
+        Animation {
+            duration,
+            slots,
+            bones,
+            events: second_animation.events.clone(),
+            draworder: second_animation.draworder.clone(),
+        }
     }
 
     pub fn duration(animation: &json::Animation) -> f32 {

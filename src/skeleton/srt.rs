@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 
 /// Scale, Rotate, Translate struct
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SRT {
     /// scale
     pub scale: [f32; 2],

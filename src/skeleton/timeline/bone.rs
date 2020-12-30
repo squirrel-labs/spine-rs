@@ -2,6 +2,7 @@ use super::CurveTimelines;
 use json;
 use skeleton::{error::SkeletonError, srt::SRT};
 
+#[derive(Debug, Clone)]
 pub struct BoneTimeline {
     translate: CurveTimelines<(f32, f32)>,
     rotate: CurveTimelines<f32>,
@@ -19,6 +20,45 @@ impl BoneTimeline {
             rotate,
             scale,
         })
+    }
+
+    pub fn from_timelines(
+        a: &BoneTimeline,
+        b: &BoneTimeline,
+        current_time: f32,
+        start_offset: f32,
+        duration: f32,
+    ) -> BoneTimeline {
+        let scale = CurveTimelines::<(f32, f32)>::from_timelines(
+            &a.scale,
+            &b.scale,
+            current_time,
+            start_offset,
+            duration,
+            (1.0, 1.0),
+        );
+        let rotate = CurveTimelines::<f32>::from_timelines(
+            &a.rotate,
+            &b.rotate,
+            current_time,
+            start_offset,
+            duration,
+            0.0,
+        );
+        let translate = CurveTimelines::<(f32, f32)>::from_timelines(
+            &a.translate,
+            &b.translate,
+            current_time,
+            start_offset,
+            duration,
+            (0.0, 0.0),
+        );
+
+        BoneTimeline {
+            translate,
+            rotate,
+            scale,
+        }
     }
 
     /// evaluates the interpolations for elapsed time on all timelines and

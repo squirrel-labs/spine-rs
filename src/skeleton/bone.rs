@@ -4,6 +4,7 @@ use super::util;
 use super::SkeletonError;
 
 /// skeleton bone
+#[derive(Debug)]
 pub struct Bone {
     pub name: String,
     pub parent_index: Option<usize>,
@@ -40,6 +41,7 @@ impl Bone {
     }
 }
 
+#[derive(Debug)]
 pub enum TransformMode {
     Normal,
     OnlyTranslation,

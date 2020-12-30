@@ -88,14 +88,15 @@ impl Curve<Option<String>> for json::SlotAttachmentTimeline {
     }
 }
 
-pub struct CurveTimeline<T> {
+#[derive(Debug, Clone)]
+pub struct CurveTimeline<T: std::fmt::Debug> {
     pub time: f32,
     pub curve: json::TimelineCurve,
     pub points: Option<(Vec<f32>, Vec<f32>)>, // bezier curve interpolations points
     pub value: T,
 }
 
-impl<T> CurveTimeline<T> {
+impl<T: std::fmt::Debug> CurveTimeline<T> {
     /// interpolation values (x, y)
     /// Sets the control handle positions for an interpolation bezier curve used to transition
     /// from this keyframe to the next.
@@ -162,11 +163,12 @@ impl<T> CurveTimeline<T> {
 }
 
 /// Set of timelines
-pub struct CurveTimelines<T> {
+#[derive(Debug, Clone)]
+pub struct CurveTimelines<T: std::fmt::Debug> {
     pub timelines: Vec<CurveTimeline<T>>,
 }
 
-impl<T: Interpolate + Clone> CurveTimelines<T> {
+impl<T: Interpolate + Clone + std::fmt::Debug> CurveTimelines<T> {
     /// Converts vector of json timelines to vector or timelines
     pub fn from_json_vec<U: Curve<T>>(
         jtimelines: Option<Vec<U>>,
@@ -196,19 +198,26 @@ impl<T: Interpolate + Clone> CurveTimelines<T> {
     pub fn empty() -> CurveTimelines<T> {
         CurveTimelines { timelines: vec![] }
     }
-    pub fn from_srts(a: T, b: T, time: f32) -> CurveTimelines<T> {
+    pub fn from_timelines(
+        a: &CurveTimelines<T>,
+        b: &CurveTimelines<T>,
+        current_time: f32,
+        start_offset: f32,
+        duration: f32,
+        default: T,
+    ) -> CurveTimelines<T> {
         let curve = TimelineCurve::CurveLinear;
         let curves = vec![
             CurveTimeline {
                 time: 0.0,
                 curve: curve.clone(),
-                value: a,
+                value: a.interpolate(current_time).unwrap_or(default.clone()),
                 points: None,
             },
             CurveTimeline {
-                time,
+                time: duration,
                 curve,
-                value: b,
+                value: b.interpolate(start_offset).unwrap_or(default),
                 points: None,
             },
         ];

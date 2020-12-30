@@ -2,14 +2,11 @@ use super::CurveTimelines;
 use json;
 use skeleton::{error::SkeletonError, srt::SRT};
 
+#[derive(Debug, Clone)]
 pub struct BoneTimeline {
     translate: CurveTimelines<(f32, f32)>,
     rotate: CurveTimelines<f32>,
     scale: CurveTimelines<(f32, f32)>,
-}
-
-fn arr_tup(arr: [f32; 2]) -> (f32, f32) {
-    (arr[0], arr[1])
 }
 
 impl BoneTimeline {
@@ -25,12 +22,37 @@ impl BoneTimeline {
         })
     }
 
-    pub fn from_srts(a: SRT, b: SRT, time: f32) -> BoneTimeline {
-        let scale =
-            CurveTimelines::<(f32, f32)>::from_srts(arr_tup(a.scale), arr_tup(b.scale), time);
-        let rotate = CurveTimelines::<f32>::from_srts(a.rotation, b.rotation, time);
-        let translate =
-            CurveTimelines::<(f32, f32)>::from_srts(arr_tup(a.position), arr_tup(b.position), time);
+    pub fn from_timelines(
+        a: &BoneTimeline,
+        b: &BoneTimeline,
+        current_time: f32,
+        start_offset: f32,
+        duration: f32,
+    ) -> BoneTimeline {
+        let scale = CurveTimelines::<(f32, f32)>::from_timelines(
+            &a.scale,
+            &b.scale,
+            current_time,
+            start_offset,
+            duration,
+            (1.0, 1.0),
+        );
+        let rotate = CurveTimelines::<f32>::from_timelines(
+            &a.rotate,
+            &b.rotate,
+            current_time,
+            start_offset,
+            duration,
+            0.0,
+        );
+        let translate = CurveTimelines::<(f32, f32)>::from_timelines(
+            &a.translate,
+            &b.translate,
+            current_time,
+            start_offset,
+            duration,
+            (0.0, 0.0),
+        );
 
         BoneTimeline {
             translate,

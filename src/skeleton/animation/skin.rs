@@ -10,6 +10,7 @@ use skeleton::{
 pub struct SkinAnimation<'a> {
     anim_bones: Vec<(&'a Bone, Option<&'a BoneTimeline>)>,
     anim_slots: Vec<(&'a Slot, AttachmentWrapper<'a>, Option<&'a SlotTimeline>)>,
+    name: String,
     duration: f32,
     transition_anim: Option<(
         f32,
@@ -23,7 +24,7 @@ impl<'a> SkinAnimation<'a> {
     pub fn new(
         skeleton: &'a Skeleton,
         skin: &str,
-        animation: Option<&str>,
+        animation_name: Option<&str>,
         transition: Option<Animation>,
     ) -> Result<SkinAnimation<'a>, SkeletonError> {
         // search all attachments defined by the skin name (use 'default' skin if not found)
@@ -31,7 +32,7 @@ impl<'a> SkinAnimation<'a> {
         let default_skin = skeleton.get_skin("default")?;
 
         // get animation
-        let (animation, duration) = if let Some(animation) = animation {
+        let (animation, mut duration) = if let Some(animation) = animation_name {
             let anim = skeleton
                 .animations
                 .get(animation)
@@ -122,11 +123,68 @@ impl<'a> SkinAnimation<'a> {
             .collect();
 
         Ok(SkinAnimation {
-            duration,
             anim_bones,
             anim_slots,
+            duration,
+            name: animation_name.unwrap_or("").to_owned(),
             transition_anim,
         })
+    }
+
+    /// Gets a SkinAnimation which can interpolate slots at a given time starting from the current
+    /// position
+    pub fn get_animated_skin_with_transiton<'b>(
+        &self,
+        skeleton: &'b Skeleton,
+        skin: &str,
+        next_animation: &str,
+        current_time: f32,
+        start_offset: f32,
+        fade_duration: f32,
+    ) -> Result<SkinAnimation<'b>, SkeletonError> {
+        let (time, inter) = self.mod_time(current_time);
+        let nan: Vec<(usize, BoneTimeline)>;
+        let cbones = if inter {
+            nan = self
+                .transition_anim
+                .as_ref()
+                .unwrap()
+                .1
+                .iter()
+                .filter_map(|(b, a)| {
+                    a.as_ref().map(|a| {
+                        (
+                            crate::skeleton::util::bone_index(
+                                b.name.as_ref(),
+                                skeleton.bones.as_slice(),
+                            )
+                            .unwrap(),
+                            a.clone(),
+                        )
+                    })
+                })
+                .collect();
+            nan.as_slice()
+        } else {
+            skeleton
+                .animations
+                .get(self.name.as_str())
+                .ok_or(SkeletonError::AnimationNotFound(self.name.clone()))?
+                .bones
+                .as_slice()
+        };
+        let trans = Animation::from_animations(
+            cbones,
+            skeleton
+                .animations
+                .get(next_animation)
+                .ok_or(SkeletonError::AnimationNotFound(next_animation.to_owned()))?,
+            &skeleton.bones,
+            time,
+            start_offset,
+            fade_duration,
+        );
+        SkinAnimation::new(skeleton, skin, Some(next_animation), Some(trans))
     }
 
     /// Gets duration of the longest timeline in the animation
@@ -134,22 +192,33 @@ impl<'a> SkinAnimation<'a> {
         self.duration
     }
 
+    /// Gets duration of the longest timeline in the animation
+    pub fn get_full_duration(&self) -> f32 {
+        match self.transition_anim.as_ref() {
+            Some(trans) => self.duration + trans.0,
+            _ => self.duration,
+        }
+    }
+
     /// gets all bones srts at given time
-    fn get_bones_srts(&self, time: f32) -> Vec<SRT> {
-        if let Some(trans) = self.transition_anim.as_ref() {
-            if trans.0 < time {
+    fn get_bones_srts(&self, time: f32, interpolate: bool) -> Vec<SRT> {
+        match self.transition_anim.as_ref() {
+            Some(trans) if interpolate => {
                 let anim = &trans.1;
                 let mut srts: Vec<SRT> = Vec::with_capacity(anim.len());
                 for (bone, anim) in anim {
                     srts.push(self.get_bone_srt(srts.as_ref(), bone, anim.as_ref(), time));
                 }
+                srts
+            }
+            _ => {
+                let mut srts: Vec<SRT> = Vec::with_capacity(self.anim_bones.len());
+                for &(bone, anim) in &self.anim_bones {
+                    srts.push(self.get_bone_srt(srts.as_ref(), bone, anim, time));
+                }
+                srts
             }
         }
-        let mut srts: Vec<SRT> = Vec::with_capacity(self.anim_bones.len());
-        for &(bone, anim) in &self.anim_bones {
-            srts.push(self.get_bone_srt(srts.as_ref(), bone, anim, time));
-        }
-        srts
     }
 
     fn get_bone_srt(
@@ -192,13 +261,21 @@ impl<'a> SkinAnimation<'a> {
         srt
     }
 
+    fn mod_time(&self, time: f32) -> (f32, bool) {
+        match self.transition_anim.as_ref() {
+            Some(trans) if time < trans.0 => (time, true),
+            Some(trans) if time >= trans.0 => {
+                ((time - trans.0).rem_euclid(self.get_duration()), false)
+            }
+            _ => (time.rem_euclid(self.get_duration()), false),
+        }
+    }
+
     /// Interpolates animated slots at given time
     pub fn interpolate<'b: 'a>(&'b self, time: f32) -> Option<Sprites<'b>> {
-        if time > self.duration {
-            return None;
-        }
+        let (time, inter) = self.mod_time(time);
 
-        let srts = self.get_bones_srts(time);
+        let srts = self.get_bones_srts(time, inter);
         let iter = self.anim_slots.iter();
         Some(Sprites { iter, srts, time })
     }
